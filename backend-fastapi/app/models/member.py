@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from app.database import Base
 
+
 class Member(Base):
     __tablename__ = "members"
 
@@ -9,3 +10,4 @@ class Member(Base):
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     phone = Column(String, nullable=True)
+    password = Column(String, nullable=False)
