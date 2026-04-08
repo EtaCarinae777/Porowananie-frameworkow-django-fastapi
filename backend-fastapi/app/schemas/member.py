@@ -8,7 +8,7 @@ class MemberBase(BaseModel):
     phone: Optional[str] = None
 
 class MemberCreate(MemberBase):
-    pass
+    password: str
 
 class MemberUpdate(BaseModel):
     first_name: Optional[str] = None
