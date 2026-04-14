@@ -31,3 +31,13 @@ def return_loan(db: Session, loan_id: int):
     db.commit()
     db.refresh(db_loan)
     return db_loan
+
+
+def delete_loan(db: Session, loan_id: int):
+    db_loan = db.query(Loan).filter(Loan.id == loan_id).first()
+
+    if db_loan:
+        db.delete(db_loan)
+        db.commit()
+        return True
+    return False

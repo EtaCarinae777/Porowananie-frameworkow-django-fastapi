@@ -27,3 +27,10 @@ def return_loan(loan_id: int, db: Session = Depends(get_db)):
     if not db_loan:
         raise HTTPException(status_code=400, detail="Wypożyczenie nie istnieje lub już zwrócone")
     return db_loan
+
+@router.delete("/{loan_id}")
+def delete_existing_loan(loan_id: int, db: Session = Depends(get_db)):
+    success = crud_loan.delete_loan(db, loan_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Wypożyczenie nie istnieje")
+    return {"message": "Wypożyczenie zostało usunięte"}
