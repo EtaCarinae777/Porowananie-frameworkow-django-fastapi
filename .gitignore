@@ -1,14 +1,46 @@
 # Python
-venv/
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+*.egg-info/
+
+# Wirtualne środowiska
+venv/
+backend-django/venv-fastapi/
+backend-fastapi/.venv-fastapi/
+backend-fastapi/venv-fastapi/
+
+# Django
+*.sqlite3
+staticfiles/
+
+# FastAPI
+backend-fastapi/__pycache__/
+backend-django/__pycache__/
+backend-django/api/__pycache__/
+backend-django/biblioteka/__pycache__/
+backend-django/api/migrations/__pycache__/
 
 # Node
+frontend/node_modules/
 node_modules/
+frontend/dist/
 dist/
-.DS_Store
+
+# Env files
+.env
+.env.local
+backend-fastapi/.env
+backend-django/.env
 
 # IDE
 .idea/
 .vscode/
+*.suo
+*.swp
+.DS_Store
+
+# Logi
+*.log
+npm-debug.log*

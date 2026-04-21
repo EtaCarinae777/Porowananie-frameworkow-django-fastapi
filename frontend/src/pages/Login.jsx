@@ -1,73 +1,47 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { login } from '../api/auth'
+import { getBackend } from '../api/client'
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const navigate = useNavigate();
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const navigate = useNavigate()
+  const backend = getBackend()
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-
-    // FastAPI OAuth2 domyślnie oczekuje FormData z polami username i password
-    const formData = new FormData();
-    formData.append('username', email);
-    formData.append('password', password);
-
+    e.preventDefault()
     try {
-      const response = await fetch('http://localhost:8002/api/auth/login', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Zapisujemy token i dane użytkownika w localStorage
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // Przekierowanie po udanym logowaniu
-        navigate('/home');
+      const data = await login(email, password)
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        navigate('/home')
       } else {
-        const errorData = await response.json();
-        alert(errorData.detail || 'Błąd logowania');
+        alert(data.detail || 'Błąd logowania')
       }
-    } catch (error) {
-      console.error("Błąd sieci:", error);
-      alert("Nie udało się połączyć z serwerem");
+    } catch (err) {
+      alert('Nie udało się połączyć z serwerem')
     }
-  };
+  }
 
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px', background: 'white', borderRadius: '8px' }}>
+      <div style={{ background: backend === 'django' ? '#2c5f8a' : '#4CAF50', color: 'white', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '16px', display: 'inline-block' }}>
+        Backend: {backend}
+      </div>
       <h2 style={{ marginBottom: '20px' }}>Logowanie</h2>
-
       <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ width: '100%', marginBottom: '10px', padding: '8px', boxSizing: 'border-box' }}
-        />
-        <input
-          type="password"
-          placeholder="Hasło"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ width: '100%', marginBottom: '10px', padding: '8px', boxSizing: 'border-box' }}
-        />
-        <button type="submit" style={{ width: '100%', marginBottom: '10px', padding: '10px' }}>
-          Zaloguj się
-        </button>
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="Hasło" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" style={{ width: '100%', marginBottom: '10px' }}>Zaloguj się</button>
       </form>
-
       <p>Nie masz konta? <a href="/register">Zarejestruj się</a></p>
+      <p style={{ marginTop: '10px', fontSize: '12px', color: '#999' }}>
+        <a href="/">← Zmień backend</a>
+      </p>
     </div>
-  );
+  )
 }
 
-export default Login;
+export default Login

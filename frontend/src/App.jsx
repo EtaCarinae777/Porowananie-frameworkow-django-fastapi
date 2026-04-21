@@ -5,18 +5,29 @@ import Home from './pages/Home'
 import Search from './pages/Search'
 import Loans from './pages/Loans'
 import Account from './pages/Account'
+import BackendSelect from './pages/BackendSelect'
 import Navbar from './components/Navbar'
+import { getBackend } from './api/client'
+
+function ProtectedRoute({ children }) {
+  const backend = getBackend()
+  if (!backend) {
+    return <Navigate to="/" />
+  }
+  return children
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<BackendSelect />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/home" element={<><Navbar /><Home /></>} />
-        <Route path="/search" element={<><Navbar /><Search /></>} />
-        <Route path="/loans" element={<><Navbar /><Loans /></>} />
-        <Route path="/account" element={<><Navbar /><Account /></>} />
+        <Route path="/home" element={<ProtectedRoute><Navbar /><Home /></ProtectedRoute>} />
+        <Route path="/search" element={<ProtectedRoute><Navbar /><Search /></ProtectedRoute>} />
+        <Route path="/loans" element={<ProtectedRoute><Navbar /><Loans /></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><Navbar /><Account /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
