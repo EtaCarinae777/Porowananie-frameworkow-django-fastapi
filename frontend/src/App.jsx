@@ -8,6 +8,7 @@ import Account from './pages/Account'
 import BackendSelect from './pages/BackendSelect'
 import Navbar from './components/Navbar'
 import { getBackend } from './api/client'
+import Benchmark from './pages/Benchmark'
 
 function ProtectedRoute({ children }) {
   const backend = getBackend()
@@ -29,6 +30,7 @@ function App() {
         <Route path="/loans" element={<ProtectedRoute><Navbar /><Loans /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Navbar /><Account /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/benchmark" element={<ProtectedRoute><Navbar /><Benchmark /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

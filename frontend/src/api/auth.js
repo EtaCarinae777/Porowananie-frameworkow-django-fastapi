@@ -7,8 +7,7 @@ export const login = async (email, password) => {
     const res = await fetch(getUrl() + '/api/token/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
+body: JSON.stringify({ username: email, password })    })
     const data = await res.json()
     // Django zwraca "access" nie "access_token"
     if (data.access) {
@@ -19,8 +18,7 @@ export const login = async (email, password) => {
     const res = await fetch(getUrl() + '/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
+body: JSON.stringify({ username: email, password })    })
     return res.json()
   }
 }

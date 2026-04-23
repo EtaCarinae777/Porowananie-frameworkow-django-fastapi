@@ -17,7 +17,8 @@ function Navbar() {
       <Link to="/search" style={{ color: 'white' }}>Szukaj</Link>
       <Link to="/loans" style={{ color: 'white' }}>Wypożyczenia</Link>
       <Link to="/account" style={{ color: 'white' }}>Konto</Link>
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <Link to="/benchmark" style={{ color: 'white' }}>Benchmark</Link>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
         <span style={{ color: 'white', fontSize: '14px' }}>Backend:</span>
         <button
           onClick={() => handleSwitch('django')}
