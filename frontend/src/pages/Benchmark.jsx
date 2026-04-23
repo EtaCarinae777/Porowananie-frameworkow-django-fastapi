@@ -97,11 +97,8 @@ function Benchmark() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '700px' }}>
-      <h2>Benchmark — test równoległości</h2>
+      <h2>Benchmark</h2>
 
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Porównanie FastAPI vs Django (login + concurrency test)
-      </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
         <input
@@ -121,20 +118,39 @@ function Benchmark() {
         />
 
         <div>
-          <label style={{ color: '#444' }}>
-            Równoległe requesty: <strong>{concurrency}</strong>
-          </label>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <label style={{ color: '#444' }}>
+      Równoległe requesty:
+    </label>
 
-          <input
-            type="range"
-            min="5"
-            max="100"
-            step="5"
-            value={concurrency}
-            onChange={e => setConcurrency(Number(e.target.value))}
-            style={{ width: '100%', marginTop: '6px' }}
-          />
-        </div>
+    {/* Pole do wpisywania "z łapy" */}
+    <input
+      type="number"
+      min="5"
+      max="300"
+      value={concurrency}
+      onChange={e => setConcurrency(Number(e.target.value))}
+      style={{
+        width: '60px',
+        padding: '2px 5px',
+        borderRadius: '4px',
+        border: '1px solid #ccc',
+        textAlign: 'center'
+      }}
+    />
+  </div>
+
+  {/* Twój obecny suwak */}
+  <input
+    type="range"
+    min="5"
+    max="300"
+    step="1"
+    value={concurrency}
+    onChange={e => setConcurrency(Number(e.target.value))}
+    style={{ width: '100%', marginTop: '6px' }}
+  />
+</div>
 
         <button
           onClick={handleRun}
