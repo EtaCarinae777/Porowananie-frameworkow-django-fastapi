@@ -14,7 +14,7 @@ def get_loans(db: Session = Depends(get_db)):
 def get_active_loans(db: Session = Depends(get_db)):
     return crud_loan.get_active_loans(db)
 
-@router.post("/", response_model=LoanRead, status_code=201)
+@router.post("/", response_model=LoanRead, status_code=201, response_model_by_alias=True)
 def create_loan(loan: LoanCreate, db: Session = Depends(get_db)):
     db_loan = crud_loan.create_loan(db, loan)
     if not db_loan:

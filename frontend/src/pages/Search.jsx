@@ -29,7 +29,7 @@ function Search() {
     const user = JSON.parse(localStorage.getItem('user'))
     if (!user) { alert('Musisz się zalogować!'); return }
     try {
-      const res = await createLoan({ book_id: bookId, member_id: user.id })
+    const res = await createLoan({ bookId: bookId, memberId: user.id })
       if (res.id) {
         alert('Książka wypożyczona!')
         handleSearch()
