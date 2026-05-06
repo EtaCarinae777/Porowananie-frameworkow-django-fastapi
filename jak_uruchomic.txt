@@ -12,8 +12,8 @@ venv\Scripts\activate
 4.Pobranie wymaganych bibliotek
 pip install -r requirements.txt
 
-5.Uruchomienie serwera django na porcie 8002
-python manage.py runserver 8002
+5.Uruchomienie serwera django na porcie 8001
+python manage.py runserver 8001
 
 6.Utworzenie superusera
 python manage.py createsuperuser
@@ -32,5 +32,5 @@ venv\Scripts\activate
 4.Pobranie wymaganych bibliotek
 pip install -r requirements.txt
 
-5.Uruchomienie serwera FastAPI na porcie 8001
-uvicorn main:app --reload --port 8001
+5.Uruchomienie serwera FastAPI na porcie 8002
+uvicorn main:app --reload --port 8002
