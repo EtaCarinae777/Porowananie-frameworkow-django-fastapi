@@ -34,15 +34,17 @@ const ENDPOINTS = [
 ]
 
 async function runEndpointTest(baseUrl, endpoint, concurrency, email, password, token) {
+  const startBenchmark = performance.now()
+  
   const requests = Array.from({ length: concurrency }, async () => {
-    const start = performance.now()
+    const startReq = performance.now()
     try {
       const options = {
         method: endpoint.method,
         headers: { 'Content-Type': 'application/json' },
       }
 
-      if (endpoint.method === 'POST' && endpoint.url.includes('token') || endpoint.url.includes('login')) {
+      if (endpoint.method === 'POST' && (endpoint.url.includes('token') || endpoint.url.includes('login'))) {
         options.body = JSON.stringify({ email, password })
       }
 
@@ -51,19 +53,23 @@ async function runEndpointTest(baseUrl, endpoint, concurrency, email, password, 
       }
 
       const res = await fetch(baseUrl + endpoint.url, options)
-      return { ok: res.ok, time: Math.round(performance.now() - start) }
+      const ok = res.ok
+      
+      // Konsumujemy body, aby upewnić się, że request został w pełni zakończony
+      await res.json().catch(() => {}) 
+      
+      return { ok, time: performance.now() - startReq }
     } catch {
-      return { ok: false, time: Math.round(performance.now() - start) }
+      return { ok: false, time: performance.now() - startReq }
     }
   })
 
-  const start = performance.now()
   const responses = await Promise.all(requests)
-  const totalTime = Math.round(performance.now() - start)
+  const totalTime = Math.round(performance.now() - startBenchmark)
+  
   const successful = responses.filter(r => r.ok)
-  const times = successful.map(r => r.time)
-  const avgTime = times.length
-    ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
+  const avgTime = successful.length
+    ? Math.round(successful.reduce((a, b) => a + b.time, 0) / successful.length)
     : 0
 
   return {
@@ -81,9 +87,9 @@ function Benchmark() {
   const [running, setRunning] = useState(false)
   const [results, setResults] = useState(null)
   const [history, setHistory] = useState(() => {
-  const saved = localStorage.getItem('benchmarkHistory')
-  return saved ? JSON.parse(saved) : []
-})
+    const saved = localStorage.getItem('benchmarkHistory')
+    return saved ? JSON.parse(saved) : []
+  })
 
   const handleRun = async () => {
     if (!email || !password) {
@@ -94,37 +100,41 @@ function Benchmark() {
     setRunning(true)
     setResults(null)
 
-    // najpierw zaloguj żeby mieć token do chronionych endpointów
+    // Logika rozgrzewki (warm-up)
+    try {
+      await fetch(DJANGO_URL + '/api/books/', { method: 'GET' }).catch(() => {})
+      await fetch(FASTAPI_URL + '/api/books/', { method: 'GET' }).catch(() => {})
+    } catch {}
+
     let djangoToken = null
     let fastapiToken = null
 
+    // Pobieranie tokenów początkowych
     try {
-      const dRes = await fetch(DJANGO_URL + '/api/token/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
+      const [dRes, fRes] = await Promise.all([
+        fetch(DJANGO_URL + '/api/token/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        }),
+        fetch(FASTAPI_URL + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+      ])
       const dData = await dRes.json()
-      djangoToken = dData.access || null
-    } catch {}
-
-    try {
-      const fRes = await fetch(FASTAPI_URL + '/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
       const fData = await fRes.json()
+      djangoToken = dData.access || null
       fastapiToken = fData.access_token || null
     } catch {}
 
     const endpointResults = []
 
     for (const ep of ENDPOINTS) {
-      const [djangoResult, fastapiResult] = await Promise.all([
-        runEndpointTest(DJANGO_URL, ep.django, concurrency, email, password, djangoToken),
-        runEndpointTest(FASTAPI_URL, ep.fastapi, concurrency, email, password, fastapiToken),
-      ])
+      // Testujemy frameworki sekwencyjnie, by nie obciążać CPU naraz dwoma serwerami
+      const djangoResult = await runEndpointTest(DJANGO_URL, ep.django, concurrency, email, password, djangoToken)
+      const fastapiResult = await runEndpointTest(FASTAPI_URL, ep.fastapi, concurrency, email, password, fastapiToken)
 
       endpointResults.push({
         label: ep.label,
@@ -135,14 +145,14 @@ function Benchmark() {
 
     setResults(endpointResults)
     setHistory(prev => {
-    const updated = [...prev, {
-      timestamp: new Date().toLocaleTimeString(),
-      concurrency,
-      results: endpointResults,
-    }]
-    localStorage.setItem('benchmarkHistory', JSON.stringify(updated))
-    return updated
-  })
+      const updated = [{
+        timestamp: new Date().toLocaleTimeString(),
+        concurrency,
+        results: endpointResults,
+      }, ...prev].slice(0, 10)
+      localStorage.setItem('benchmarkHistory', JSON.stringify(updated))
+      return updated
+    })
     setRunning(false)
   }
 
@@ -162,7 +172,7 @@ function Benchmark() {
     <div style={{ padding: '20px', maxWidth: '900px' }}>
       <h2>Benchmark – Django vs FastAPI</h2>
       <p style={{ color: '#666', marginTop: '5px', marginBottom: '20px' }}>
-        Każdy endpoint testowany {concurrency} równoległymi requestami
+        Każdy endpoint testowany {concurrency} równoległymi requestami (sekwencyjnie per framework)
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '400px', marginBottom: '20px' }}>
@@ -214,7 +224,6 @@ function Benchmark() {
 
       {results && (
         <>
-          {/* Wykres 1 – średni czas odpowiedzi */}
           <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '16px' }}>Średni czas odpowiedzi (ms)</h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -230,7 +239,6 @@ function Benchmark() {
             </ResponsiveContainer>
           </div>
 
-          {/* Wykres 2 – łączny czas */}
           <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '16px' }}>Łączny czas wszystkich requestów (ms)</h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -246,7 +254,6 @@ function Benchmark() {
             </ResponsiveContainer>
           </div>
 
-          {/* Tabelka szczegółowa */}
           <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '16px' }}>Szczegółowe wyniki</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
@@ -273,21 +280,20 @@ function Benchmark() {
             </table>
           </div>
 
-          {/* Historia testów */}
           {history.length > 0 && (
             <div style={{ background: 'white', padding: '20px', borderRadius: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h3>Historia testów</h3>
                 <button 
                   onClick={() => { setHistory([]); localStorage.removeItem('benchmarkHistory') }}
-                  style={{ background: '#e24a4a', fontSize: '12px', padding: '4px 10px' }}
+                  style={{ background: '#e24a4a', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', padding: '4px 10px', cursor: 'pointer' }}
                 >
                   Wyczyść
                 </button>
               </div>
               {history.map((h, i) => (
                 <p key={i} style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
-                  {h.timestamp} – {h.concurrency} requestów – książki: Django {h.results[1]?.django.avgTime}ms / FastAPI {h.results[1]?.fastapi.avgTime}ms
+                  {h.timestamp} – {h.concurrency} requestów – logowanie: D {h.results[0]?.django.avgTime}ms / F {h.results[0]?.fastapi.avgTime}ms
                 </p>
               ))}
             </div>
