@@ -11,7 +11,6 @@ from app.utils import security
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Konfiguracja czasów wygasania (można przenieść do pliku config)
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
@@ -21,32 +20,38 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    phone: str | None = None
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
 
 @router.post("/login")
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    # 1. Pobieranie użytkownika z bazy
     result = await db.execute(select(Member).where(Member.email == data.email))
     user = result.scalar_one_or_none()
 
-    # 2. Weryfikacja hasła (Oddelegowana do osobnego wątku, by nie blokować pętli!)
+    # verify_password w osobnym wątku — nie blokuje event loop
     if user:
-        is_password_valid = await run_in_threadpool(
+        is_valid = await run_in_threadpool(
             security.verify_password, data.password, user.password
         )
     else:
-        is_password_valid = False
+        is_valid = False
 
-    if not is_password_valid:
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Niepoprawny email lub hasło",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 3. Generowanie tokenów przy użyciu funkcji z security.py
     access_token = security.create_access_token(
         data={"sub": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -69,9 +74,39 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.post("/register", status_code=201)
+async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Member).where(Member.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email już zajęty",
+        )
+
+    # hash_password w osobnym wątku — nie blokuje event loop
+    hashed = await run_in_threadpool(security.hash_password, data.password)
+
+    user = Member(
+        email=data.email,
+        password=hashed,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        phone=data.phone,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+    }
+
+
 @router.post("/refresh")
 async def refresh_token(data: RefreshRequest):
-    # Dekodowanie tokena (zabezpieczone try-except wewnątrz decode_token)
     payload = security.decode_token(data.refresh_token)
 
     if not payload or payload.get("type") != "refresh":
@@ -87,7 +122,6 @@ async def refresh_token(data: RefreshRequest):
             detail="Błędny ładunek tokena",
         )
 
-    # Generowanie nowego access tokena
     new_access_token = security.create_access_token(
         data={"sub": email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -98,8 +132,8 @@ async def refresh_token(data: RefreshRequest):
 
 @router.get("/me")
 async def get_me(
-        db: AsyncSession = Depends(get_db),
-        current_user_email: str = Depends(security.get_current_user),
+    db: AsyncSession = Depends(get_db),
+    current_user_email: str = Depends(security.get_current_user),
 ):
     result = await db.execute(
         select(Member).where(Member.email == current_user_email)
@@ -109,7 +143,7 @@ async def get_me(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Użytkownik nie istnieje"
+            detail="Użytkownik nie istnieje",
         )
 
     return {

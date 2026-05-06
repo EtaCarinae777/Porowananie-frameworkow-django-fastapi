@@ -1,7 +1,11 @@
+import asyncio
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 
 # -------------------------
 # PASSWORD HASHING
@@ -16,6 +20,16 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+async def hash_password_async(password: str) -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, pwd_context.hash, password)
+
+
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, pwd_context.verify, plain_password, hashed_password)
 
 
 # -------------------------
@@ -38,16 +52,10 @@ def create_access_token(
     expires_delta: Optional[timedelta] = None
 ) -> str:
     to_encode = data.copy()
-
     expire = datetime.utcnow() + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-
-    to_encode.update({
-        "exp": expire,
-        "type": "access"
-    })
-
+    to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -56,16 +64,10 @@ def create_refresh_token(
     expires_delta: Optional[timedelta] = None
 ) -> str:
     to_encode = data.copy()
-
     expire = datetime.utcnow() + (
         expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     )
-
-    to_encode.update({
-        "exp": expire,
-        "type": "refresh"
-    })
-
+    to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -80,40 +82,31 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-# -------------------------
-# OPTIONAL: extract user
-# -------------------------
-
 def get_email_from_token(token: str) -> Optional[str]:
     payload = decode_token(token)
-
     if not payload:
         return None
-
     return payload.get("sub")
 
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+# -------------------------
+# FASTAPI DEPENDENCY
+# -------------------------
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     payload = decode_token(token)
-
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail="Invalid token",
         )
-
     email = payload.get("sub")
-
     if not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
+            detail="Invalid token payload",
         )
-
     return email
