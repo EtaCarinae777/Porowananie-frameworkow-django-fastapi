@@ -27,16 +27,19 @@ function Search() {
 
   const handleLoan = async (bookId) => {
     const user = JSON.parse(localStorage.getItem('user'))
-    if (!user) { alert('Musisz się zalogować!'); return }
+    if (!user?.id) {
+      alert('Nie można pobrać danych użytkownika – zaloguj się ponownie')
+      return
+    }
     try {
-    const res = await createLoan({ bookId: bookId, memberId: user.id })
+      const res = await createLoan(bookId, user.id)
       if (res.id) {
         alert('Książka wypożyczona!')
         handleSearch()
       } else {
-        alert(res.detail || 'Nie udało się wypożyczyć')
+        alert(res.detail || res.book?.[0] || 'Nie udało się wypożyczyć')
       }
-    } catch (err) {
+    } catch {
       alert('Błąd połączenia z serwerem')
     }
   }

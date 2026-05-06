@@ -15,7 +15,18 @@ function Login() {
       const data = await login(email, password)
       if (data.access_token) {
         localStorage.setItem('token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data.user))
+
+        // pobierz dane użytkownika z /api/me/
+        const meRes = await fetch(`http://localhost:8001/api/me/`, {
+          headers: { 'Authorization': `Bearer ${data.access_token}` }
+        })
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          localStorage.setItem('user', JSON.stringify(meData))
+        } else {
+          localStorage.setItem('user', JSON.stringify({ email }))
+        }
+
         navigate('/home')
       } else {
         alert(data.detail || 'Błąd logowania')
@@ -24,7 +35,6 @@ function Login() {
       alert('Nie udało się połączyć z serwerem')
     }
   }
-
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px', background: 'white', borderRadius: '8px' }}>
       <div style={{ background: backend === 'django' ? '#2c5f8a' : '#4CAF50', color: 'white', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '16px', display: 'inline-block' }}>

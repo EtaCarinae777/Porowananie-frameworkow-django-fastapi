@@ -6,15 +6,15 @@ import Search from './pages/Search'
 import Loans from './pages/Loans'
 import Account from './pages/Account'
 import BackendSelect from './pages/BackendSelect'
+import Benchmark from './pages/Benchmark'
 import Navbar from './components/Navbar'
 import { getBackend } from './api/client'
-import Benchmark from './pages/Benchmark'
 
 function ProtectedRoute({ children }) {
   const backend = getBackend()
-  if (!backend) {
-    return <Navigate to="/" />
-  }
+  const token = localStorage.getItem('token')
+  if (!backend) return <Navigate to="/" />
+  if (!token) return <Navigate to="/login" />
   return children
 }
 
@@ -29,8 +29,8 @@ function App() {
         <Route path="/search" element={<ProtectedRoute><Navbar /><Search /></ProtectedRoute>} />
         <Route path="/loans" element={<ProtectedRoute><Navbar /><Loans /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Navbar /><Account /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" />} />
         <Route path="/benchmark" element={<ProtectedRoute><Navbar /><Benchmark /></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )
