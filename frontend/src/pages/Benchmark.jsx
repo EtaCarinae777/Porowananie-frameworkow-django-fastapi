@@ -31,11 +31,23 @@ const ENDPOINTS = [
     fastapi: { url: '/api/members/', method: 'GET', auth: false },
     isLogin: false,
   },
+  {
+    label: 'Aktualizacja książki (PUT)',
+    django: { url: '/api/books/1/', method: 'PUT', auth: true, body: { title: 'Test PUT', author: 'Autor', is_available: true } },
+    fastapi: { url: '/api/books/1', method: 'PUT', auth: true, body: { title: 'Test PUT', author: 'Autor', is_available: true } },
+    isLogin: false,
+  },
 ]
+
+function calcPercentile(times, p) {
+  const sorted = [...times].sort((a, b) => a - b)
+  const idx = Math.floor(sorted.length * p)
+  return Math.round(sorted[Math.min(idx, sorted.length - 1)])
+}
 
 async function runEndpointTest(baseUrl, endpoint, concurrency, email, password, token) {
   const startBenchmark = performance.now()
-  
+
   const requests = Array.from({ length: concurrency }, async () => {
     const startReq = performance.now()
     try {
@@ -48,16 +60,20 @@ async function runEndpointTest(baseUrl, endpoint, concurrency, email, password, 
         options.body = JSON.stringify({ email, password })
       }
 
+      if (endpoint.body) {
+        options.body = JSON.stringify(endpoint.body)
+      }
+
       if (endpoint.auth && token) {
         options.headers['Authorization'] = `Bearer ${token}`
       }
 
       const res = await fetch(baseUrl + endpoint.url, options)
       const ok = res.ok
-      
+
       // Konsumujemy body, aby upewnić się, że request został w pełni zakończony
-      await res.json().catch(() => {}) 
-      
+      await res.json().catch(() => {})
+
       return { ok, time: performance.now() - startReq }
     } catch {
       return { ok: false, time: performance.now() - startReq }
@@ -66,17 +82,26 @@ async function runEndpointTest(baseUrl, endpoint, concurrency, email, password, 
 
   const responses = await Promise.all(requests)
   const totalTime = Math.round(performance.now() - startBenchmark)
-  
+
   const successful = responses.filter(r => r.ok)
-  const avgTime = successful.length
-    ? Math.round(successful.reduce((a, b) => a + b.time, 0) / successful.length)
+  const successTimes = successful.map(r => r.time)
+
+  const avgTime = successTimes.length
+    ? Math.round(successTimes.reduce((a, b) => a + b, 0) / successTimes.length)
     : 0
+
+  const p50 = successTimes.length ? calcPercentile(successTimes, 0.50) : 0
+  const p95 = successTimes.length ? calcPercentile(successTimes, 0.95) : 0
+  const p99 = successTimes.length ? calcPercentile(successTimes, 0.99) : 0
 
   return {
     totalTime,
     successful: successful.length,
     failed: responses.length - successful.length,
     avgTime,
+    p50,
+    p95,
+    p99,
   }
 }
 
@@ -168,6 +193,12 @@ function Benchmark() {
     FastAPI: r.fastapi.totalTime,
   }))
 
+  const chartDataP95 = results?.map(r => ({
+    name: r.label,
+    Django: r.django.p95,
+    FastAPI: r.fastapi.p95,
+  }))
+
   return (
     <div style={{ padding: '20px', maxWidth: '900px' }}>
       <h2>Benchmark – Django vs FastAPI</h2>
@@ -255,13 +286,34 @@ function Benchmark() {
           </div>
 
           <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
+            <h3 style={{ marginBottom: '16px' }}>P95 – czas odpowiedzi (ms)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartDataP95}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis unit=" ms" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Django" fill="#2c5f8a" />
+                <Bar dataKey="FastAPI" fill="#4CAF50" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '16px' }}>Szczegółowe wyniki</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
                   <th style={th}>Endpoint</th>
                   <th style={th}>Django avg</th>
+                  <th style={th}>Django P50</th>
+                  <th style={th}>Django P95</th>
+                  <th style={th}>Django P99</th>
                   <th style={th}>FastAPI avg</th>
+                  <th style={th}>FastAPI P50</th>
+                  <th style={th}>FastAPI P95</th>
+                  <th style={th}>FastAPI P99</th>
                   <th style={th}>Django błędy</th>
                   <th style={th}>FastAPI błędy</th>
                 </tr>
@@ -271,7 +323,13 @@ function Benchmark() {
                   <tr key={r.label}>
                     <td style={td}>{r.label}</td>
                     <td style={td}>{r.django.avgTime} ms</td>
+                    <td style={td}>{r.django.p50} ms</td>
+                    <td style={td}>{r.django.p95} ms</td>
+                    <td style={td}>{r.django.p99} ms</td>
                     <td style={td}>{r.fastapi.avgTime} ms</td>
+                    <td style={td}>{r.fastapi.p50} ms</td>
+                    <td style={td}>{r.fastapi.p95} ms</td>
+                    <td style={td}>{r.fastapi.p99} ms</td>
                     <td style={{ ...td, color: r.django.failed > 0 ? 'red' : 'inherit' }}>{r.django.failed}</td>
                     <td style={{ ...td, color: r.fastapi.failed > 0 ? 'red' : 'inherit' }}>{r.fastapi.failed}</td>
                   </tr>
@@ -284,7 +342,7 @@ function Benchmark() {
             <div style={{ background: 'white', padding: '20px', borderRadius: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h3>Historia testów</h3>
-                <button 
+                <button
                   onClick={() => { setHistory([]); localStorage.removeItem('benchmarkHistory') }}
                   style={{ background: '#e24a4a', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', padding: '4px 10px', cursor: 'pointer' }}
                 >

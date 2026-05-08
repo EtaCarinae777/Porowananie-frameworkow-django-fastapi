@@ -8,12 +8,17 @@ from app.schemas.loan import LoanCreate
 
 
 async def get_loans(db: AsyncSession):
-    result = await db.execute(select(Loan))
+    result = await db.execute(
+        select(Loan).options(selectinload(Loan.book))
+    )
     return result.scalars().all()
 
 
 async def get_active_loans(db: AsyncSession):
-    result = await db.execute(select(Loan).where(Loan.is_returned == False))
+    result = await db.execute(
+        select(Loan).where(Loan.is_returned == False)
+        .options(selectinload(Loan.book))
+    )
     return result.scalars().all()
 
 
@@ -26,12 +31,13 @@ async def create_loan(db: AsyncSession, loan: LoanCreate):
     db_loan = Loan(**loan.model_dump())
     db.add(db_loan)
     await db.commit()
-    await db.refresh(db_loan)
-    return db_loan
+    result = await db.execute(
+        select(Loan).where(Loan.id == db_loan.id).options(selectinload(Loan.book))
+    )
+    return result.scalar_one()
 
 
 async def return_loan(db: AsyncSession, loan_id: int):
-    # selectinload żeby eager-loadować book (lazy loading nie działa w async)
     result = await db.execute(
         select(Loan).where(Loan.id == loan_id).options(selectinload(Loan.book))
     )
@@ -42,8 +48,10 @@ async def return_loan(db: AsyncSession, loan_id: int):
     db_loan.returned_at = datetime.now()
     db_loan.book.is_available = True
     await db.commit()
-    await db.refresh(db_loan)
-    return db_loan
+    result = await db.execute(
+        select(Loan).where(Loan.id == loan_id).options(selectinload(Loan.book))
+    )
+    return result.scalar_one()
 
 
 async def delete_loan(db: AsyncSession, loan_id: int):

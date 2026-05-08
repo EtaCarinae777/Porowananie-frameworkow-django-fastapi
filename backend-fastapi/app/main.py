@@ -2,8 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import books, members, loans, auth
-
-# 🔥 KLUCZOWE — import modeli
 from app.models import member, book, loan
 
 from sqlalchemy.ext.asyncio import AsyncEngine

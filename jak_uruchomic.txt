@@ -1,3 +1,35 @@
+Uruchomienie na gunicorn
+
+Pierwsze uruchomienie
+
+# FastAPI
+cd backend-fastapi
+pip install gunicorn uvicorn[standard]
+
+# Django
+cd ../backend-django
+pip install gunicorn
+
+Kazde kolejne
+
+Terminal 1 — FastAPI:
+bashcd backend-fastapi
+source .venv/bin/activate
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8002
+Terminal 2 — Django:
+bashcd backend-django
+source venv/bin/activate
+gunicorn biblioteka.wsgi:application --bind 0.0.0.0:8001 --workers 4
+Terminal 3 — Frontend:
+bashcd frontend
+npm run dev
+
+
+
+
+
+
+
 __________PIERWSZE URUCHOMIENIE DJANGO__________
 
 1.Przejdz do folderu backend-DJANGO
