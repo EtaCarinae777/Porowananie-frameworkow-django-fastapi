@@ -7,9 +7,7 @@ from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-# -------------------------
-# PASSWORD HASHING
-# -------------------------
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -32,9 +30,7 @@ async def verify_password_async(plain_password: str, hashed_password: str) -> bo
     return await loop.run_in_executor(None, pwd_context.verify, plain_password, hashed_password)
 
 
-# -------------------------
-# JWT CONFIG
-# -------------------------
+
 
 SECRET_KEY = "super-tajny-klucz-biblioteki"  # ⚠️ w produkcji: ENV VARIABLE
 ALGORITHM = "HS256"
@@ -42,10 +38,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-
-# -------------------------
-# TOKEN CREATION
-# -------------------------
 
 def create_access_token(
     data: Dict[str, Any],
@@ -71,9 +63,6 @@ def create_refresh_token(
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-# -------------------------
-# TOKEN DECODING
-# -------------------------
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
@@ -89,9 +78,6 @@ def get_email_from_token(token: str) -> Optional[str]:
     return payload.get("sub")
 
 
-# -------------------------
-# FASTAPI DEPENDENCY
-# -------------------------
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
